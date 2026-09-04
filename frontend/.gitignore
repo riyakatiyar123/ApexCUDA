@@ -1,8 +1,38 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ==============================================================================
+# 1. PYTHON, VIRTUAL ENVIRONMENTS & JUPYTER
+# ==============================================================================
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.ipynb_checkpoints/
 
-# dependencies
-/node_modules
-/.pnp
+# ==============================================================================
+# 2. JAVASCRIPT / NODE.JS & NEXT.JS (MATCHES ALL SUBDIRECTORIES)
+# ==============================================================================
+node_modules/
+**/node_modules/
+.pnp
 .pnp.*
 .yarn/*
 !.yarn/patches
@@ -10,32 +40,30 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
+# Next.js build output
+.next/
+**/.next/
+out/
+**/out/
+coverage/
 
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
+# Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
+# ==============================================================================
+# 3. ENVIRONMENT & OS ARTIFACTS
+# ==============================================================================
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+.DS_Store
+Thumbs.db
+*.pem
 .vercel
-
-# typescript
 *.tsbuildinfo
 next-env.d.ts
