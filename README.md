@@ -6,18 +6,16 @@
 
 ---
 
-## 👥 Our Team
+## 👥 Team & Contribution Matrix
 
-| Team Member | GitHub | Main Responsibility |
-|---|---|---|
-| **Manya Aggarwal** 🌟 | [@manya0306](https://github.com/manya0306) | Team Leader · Problem Formulation & Presolver |
-| **Riya Katiyar** | [@riyakatiyar123](https://github.com/riyakatiyar123) | Frontend · Mission Control Dashboard & Telemetry |
-| **Aashna Das** | [@AashnaDas](https://github.com/AashnaDas) | Benchmarking · CPU vs GPU Performance Testing |
-| **Vanshi Aneja** | [@vanshianeja](https://github.com/vanshianeja) | MPS File Processing & System Workflows |
-| **Ayush Mishra** | [@ayushmishra2992](https://github.com/ayushmishra2992) | CUDA · GPU Acceleration & Sparse Matrix Operations |
-| **Arnav Gupta** | [@arnavg19](https://github.com/arnavg19) | ADMM · Mathematical Optimization & Solver Logic |
-
----
+| Team Member | GitHub Handle | Core Contributions |
+| :--- | :--- | :--- |
+| **Manya Aggarwal** 🌟 | [@manya0306](https://github.com/manya0306) | **Team Leader** · Problem Formulation, Presolver Pipeline, Constraint Reduction |
+| **Aashna Das** | [@AashnaDas](https://github.com/AashnaDas) | **Solver Engineer** · Matrix-Free ADMM / PDHG Solver, Primal/Dual Residual Convergence |
+| **Ayush Mishra** | [@ayushmishra2992](https://github.com/ayushmishra2992) | **GPU Systems** · NVIDIA CUDA & cuSPARSE SpMV Kernel Optimization |
+| **Arnav Gupta** | [@arnavg19](https://github.com/arnavg19) | **Data Engineering** · 1,000-Flight Workload Generation, Fleet & Crew Disruption Modeling |
+| **Riya Katiyar** | [@riyakatiyar123](https://github.com/riyakatiyar123) | **Full-Stack Engineer** · Next.js Mission Control Digital Twin, FastAPI Telemetry Server |
+| **Vanshi Aneja** | [@vanshianeja](https://github.com/vanshianeja) | **Presentation & Documentation** · SIH 2026 Pitch Deck Architecture, Visual Layouts & Specifications |
 
 ## 💡 What is ApexCUDA?
 
