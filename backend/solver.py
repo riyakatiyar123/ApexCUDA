@@ -10,20 +10,20 @@ def constraint_violation(Ax, lower, upper):
     lower_violation = np.maximum(lower - Ax, 0)
     upper_violation = np.maximum(Ax - upper, 0)
 
-    max_lower = np.max(lower_violation)
-    max_upper = np.max(upper_violation)
-
-    return max(max_lower, max_upper)
+    return float(max(
+        np.max(lower_violation),
+        np.max(upper_violation)
+    ))
 
 
 def bound_violation(x, lower, upper):
     lower_violation = np.maximum(lower - x, 0)
     upper_violation = np.maximum(x - upper, 0)
 
-    return max(
+    return float(max(
         np.max(lower_violation),
         np.max(upper_violation)
-    )
+    ))
 
 
 def integrality_violation(x, integrality):
@@ -32,14 +32,23 @@ def integrality_violation(x, integrality):
     if not np.any(integer_mask):
         return 0.0
 
-    return np.max(
+    return float(np.max(
         np.abs(x[integer_mask] - np.round(x[integer_mask]))
-    )
+    ))
 
 
-def verify_solution(model, solution, objective=None):
+def verify_solution(
+    model,
+    solution,
+    objective=None,
+    feasibility_tolerance=1e-6,
+    integrality_tolerance=1e-6
+):
     """
     Verify a solution against a generic OptimizationModel.
+
+    Feasibility and integrality are evaluated using numerical
+    tolerances rather than requiring exact zero violation.
     """
 
     Ax = model.A @ solution
@@ -64,16 +73,18 @@ def verify_solution(model, solution, objective=None):
     if objective is None:
         objective = model.objective @ solution
 
+    feasible = (
+        constraint_error <= feasibility_tolerance
+        and bound_error <= feasibility_tolerance
+        and integer_error <= integrality_tolerance
+    )
+
     return {
         "objective": float(objective),
         "constraint_violation": float(constraint_error),
         "bound_violation": float(bound_error),
         "integrality_violation": float(integer_error),
-        "feasible": (
-            constraint_error == 0.0
-            and bound_error == 0.0
-            and integer_error == 0.0
-        )
+        "feasible": feasible
     }
 
 def admm_lp_test(
