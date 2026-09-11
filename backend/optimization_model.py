@@ -104,6 +104,11 @@ class OptimizationModel:
         }
 
     def validate(self):
+        if np.any(self.constraint_lower > self.constraint_upper):
+            raise ValueError("Inverted constraint bounds: lower bound cannot exceed upper bound.")
+        if np.any(self.variable_lower > self.variable_upper):
+            raise ValueError("Inverted variable bounds: lower bound cannot exceed upper bound.")
+
         if self.A.ndim != 2:
             raise ValueError(
                 "A must be a 2-dimensional sparse matrix."
