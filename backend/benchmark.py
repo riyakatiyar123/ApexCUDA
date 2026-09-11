@@ -72,3 +72,28 @@ def run_benchmark(
         "bound_violation": result.bound_violation,
         "backend": result.backend,
     }
+
+def run_benchmarks(
+    filepaths,
+    backend="cpu",
+    rho=1.0,
+    max_iterations=100
+):
+    """
+    Run the benchmark runner on multiple optimization models.
+
+    Returns a list of benchmark result dictionaries.
+    """
+
+    results = []
+
+    for filepath in filepaths:
+        result = run_benchmark(
+            filepath,
+            backend=backend,
+            rho=rho,
+            max_iterations=max_iterations
+        )
+        results.append(result)
+
+    return results
