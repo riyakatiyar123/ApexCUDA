@@ -1,8 +1,8 @@
 import time
 import numpy as np
 
-from backend.optimization_model import OptimizationResult
-from backend.solver import verify_solution
+from backend.core.optimization_model import OptimizationResult
+from backend.core.solver import verify_solution
 
 
 class MILPSolver:
@@ -17,11 +17,13 @@ class MILPSolver:
         self,
         rho=1.0,
         max_lp_iterations=100,
-        max_nodes=100
+        max_nodes=100,
+        backend="cpu"
     ):
         self.rho = rho
         self.max_lp_iterations = max_lp_iterations
         self.max_nodes = max_nodes
+        self.backend = backend
 
     def solve(self, model):
         if model.problem_type != "MILP":
@@ -32,11 +34,12 @@ class MILPSolver:
 
         start_time = time.time()
 
-        from backend.solver import ADMMSolver
+        from backend.core.solver import ADMMSolver
 
         lp_solver = ADMMSolver(
             rho=self.rho,
-            max_iterations=self.max_lp_iterations
+            max_iterations=self.max_lp_iterations,
+            backend=self.backend
         )
 
         integer_indices = np.where(
@@ -172,7 +175,7 @@ class MILPSolver:
                 iterations=processed_nodes,
                 constraint_violation=np.inf,
                 bound_violation=np.inf,
-                backend="cpu",
+                backend=self.backend,
                 problem_type="MILP"
             )
 
@@ -195,7 +198,7 @@ class MILPSolver:
             iterations=processed_nodes,
             constraint_violation=verification["constraint_violation"],
             bound_violation=verification["bound_violation"],
-            backend="cpu",
+            backend=self.backend,
             problem_type="MILP"
         )
 
@@ -209,7 +212,7 @@ class MILPSolver:
         Create an LP relaxation for a branch-and-bound node.
         """
 
-        from backend.optimization_model import OptimizationModel
+        from backend.core.optimization_model import OptimizationModel
 
         return OptimizationModel(
             A=model.A,

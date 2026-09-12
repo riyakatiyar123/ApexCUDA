@@ -1,8 +1,8 @@
 import time
 import numpy as np
 
-from backend.optimization_model import OptimizationResult
-
+from backend.core.optimization_model import OptimizationResult
+from backend.backends.cuda_backend import CUDABackend
 
 def constraint_violation(Ax, lower, upper):
     lower_violation = np.maximum(lower - Ax, 0)
@@ -165,9 +165,321 @@ class ADMMSolver:
 
         return float(norm_Ax)
 
+    def _solve_cuda(self, model):
+        self._validate_model(model)
+
+
+        A = model.A
+        objective = model.objective
+        constraint_lower = model.constraint_lower
+        constraint_upper = model.constraint_upper
+        variable_lower = model.variable_lower
+        variable_upper = model.variable_upper
+
+        n = model.n_variables
+        m = model.n_constraints
+
+        self.objective_history_ = []
+        self.constraint_violation_history_ = []
+        self.primal_residual_history_ = []
+        self.dual_residual_history_ = []
+
+        start_time = time.perf_counter()
+
+        # Convert maximization into minimization.
+        if model.objective_sense == "min":
+            c = objective.copy()
+        else:
+            c = -objective.copy()
+
+        # ------------------------------------------------------------
+        # CUDA setup
+        # ------------------------------------------------------------
+
+        import cupy as cp
+
+        cuda = CUDABackend(A)
+
+        c_gpu = cp.asarray(c)
+        lower_gpu = cp.asarray(constraint_lower)
+        upper_gpu = cp.asarray(constraint_upper)
+        variable_lower_gpu = cp.asarray(variable_lower)
+        variable_upper_gpu = cp.asarray(variable_upper)
+
+        # ------------------------------------------------------------
+        # Initial point
+        # ------------------------------------------------------------
+
+        x = cp.zeros(n)
+
+        finite_lower = np.isfinite(variable_lower)
+        finite_upper = np.isfinite(variable_upper)
+
+        x[finite_lower] = cp.maximum(
+            x[finite_lower],
+            variable_lower_gpu[finite_lower]
+        )
+
+        x[finite_upper] = cp.minimum(
+            x[finite_upper],
+            variable_upper_gpu[finite_upper]
+        )
+
+        x_bar = x.copy()
+
+        # Dual variable
+        y = cp.zeros(m)
+
+        # ------------------------------------------------------------
+        # Estimate operator norm on GPU
+        # ------------------------------------------------------------
+
+        rng = cp.random.default_rng(42)
+        x_norm = rng.standard_normal(n)
+
+        norm_x = cp.linalg.norm(x_norm)
+
+        if norm_x == 0:
+            operator_norm = 1.0
+        else:
+            x_norm /= norm_x
+
+            for _ in range(20):
+                y_norm = cuda.matvec(x_norm)
+                z_norm = cuda.rmatvec(y_norm)
+
+                norm_z = cp.linalg.norm(z_norm)
+
+                if norm_z == 0:
+                    break
+
+                x_norm = z_norm / norm_z
+
+            Ax_norm = cuda.matvec(x_norm)
+            operator_norm = float(
+                cp.linalg.norm(Ax_norm).get()
+            )
+
+            if operator_norm <= 1e-12:
+                operator_norm = 1.0
+
+        # ------------------------------------------------------------
+        # PDHG step sizes
+        # ------------------------------------------------------------
+
+        tau = 0.9 / operator_norm
+        sigma = 0.9 / operator_norm
+        theta = 1.0
+
+        status = "MAX_ITERATIONS_REACHED"
+
+        # ------------------------------------------------------------
+        # PDHG iterations
+        # ------------------------------------------------------------
+
+        for iteration in range(1, self.max_iterations + 1):
+
+            # --------------------------------------------------------
+            # Dual update
+            # --------------------------------------------------------
+
+            y_previous = y.copy()
+
+            v = y + sigma * cuda.matvec(x_bar)
+
+            z = v / sigma
+
+            finite_lower_constraint = cp.isfinite(
+                lower_gpu
+            )
+            finite_upper_constraint = cp.isfinite(
+                upper_gpu
+            )
+
+            z[finite_lower_constraint] = cp.maximum(
+                z[finite_lower_constraint],
+                lower_gpu[finite_lower_constraint]
+            )
+
+            z[finite_upper_constraint] = cp.minimum(
+                z[finite_upper_constraint],
+                upper_gpu[finite_upper_constraint]
+            )
+
+            y = v - sigma * z
+
+            # --------------------------------------------------------
+            # Primal update
+            # --------------------------------------------------------
+
+            x_previous = x.copy()
+
+            x = x - tau * (
+                c_gpu + cuda.rmatvec(y)
+            )
+
+            # Project onto variable bounds.
+            finite_lower_variable = cp.isfinite(
+                variable_lower_gpu
+            )
+            finite_upper_variable = cp.isfinite(
+                variable_upper_gpu
+            )
+
+            x[finite_lower_variable] = cp.maximum(
+                x[finite_lower_variable],
+                variable_lower_gpu[finite_lower_variable]
+            )
+
+            x[finite_upper_variable] = cp.minimum(
+                x[finite_upper_variable],
+                variable_upper_gpu[finite_upper_variable]
+            )
+
+            # --------------------------------------------------------
+            # Extrapolation
+            # --------------------------------------------------------
+
+            x_bar = x + theta * (x - x_previous)
+
+            # --------------------------------------------------------
+            # Diagnostics
+            #
+            # Only synchronize every 10 iterations to reduce
+            # CPU-GPU synchronization overhead.
+            # --------------------------------------------------------
+
+            if (
+                iteration == 1
+                or iteration % 10 == 0
+                or iteration == self.max_iterations
+            ):
+                Ax_gpu = cuda.matvec(x)
+
+                lower_violation = cp.maximum(
+                    lower_gpu - Ax_gpu,
+                    0
+                )
+
+                upper_violation = cp.maximum(
+                    Ax_gpu - upper_gpu,
+                    0
+                )
+
+                current_constraint_violation = float(
+                    cp.maximum(
+                        lower_violation,
+                        upper_violation
+                    ).max().get()
+                )
+
+                lower_bound_violation = cp.maximum(
+                    variable_lower_gpu - x,
+                    0
+                )
+
+                upper_bound_violation = cp.maximum(
+                    x - variable_upper_gpu,
+                    0
+                )
+
+                current_bound_violation = float(
+                    cp.maximum(
+                        lower_bound_violation,
+                        upper_bound_violation
+                    ).max().get()
+                )
+
+                primal_residual = float(
+                    cp.linalg.norm(
+                        x - x_previous
+                    ).get()
+                )
+
+                dual_residual = float(
+                    cp.linalg.norm(
+                        y - y_previous
+                    ).get()
+                )
+
+                x_cpu_diagnostic = cp.asnumpy(x)
+
+                original_objective = float(
+                    objective @ x_cpu_diagnostic
+                )
+
+                self.objective_history_.append(
+                    original_objective
+                )
+
+                self.constraint_violation_history_.append(
+                    current_constraint_violation
+                )
+
+                self.primal_residual_history_.append(
+                    primal_residual
+                )
+
+                self.dual_residual_history_.append(
+                    dual_residual
+                )
+
+                if (
+                    current_constraint_violation <= self.tolerance
+                    and current_bound_violation <= self.tolerance
+                    and primal_residual <= self.tolerance
+                    and dual_residual <= self.tolerance
+                ):
+                    status = "CONVERGED"
+                    break
+
+        # ------------------------------------------------------------
+        # Final verification
+        # ------------------------------------------------------------
+
+        cuda.synchronize()
+
+        x_cpu = cuda.to_cpu(x)
+
+        final_objective = float(
+            objective @ x_cpu
+        )
+
+        verification = verify_solution(
+            model,
+            x_cpu,
+            final_objective
+        )
+
+        solve_time = time.perf_counter() - start_time
+
+        if status == "CONVERGED":
+            if verification["feasible"]:
+                status = "FEASIBLE"
+            else:
+                status = "MAX_ITERATIONS_REACHED"
+
+        return OptimizationResult(
+            status=status,
+            objective=final_objective,
+            solution=x_cpu,
+            solve_time=float(solve_time),
+            iterations=iteration,
+            constraint_violation=float(
+                verification["constraint_violation"]
+            ),
+            bound_violation=float(
+                verification["bound_violation"]
+            ),
+            backend=self.backend,
+            problem_type=model.problem_type
+        )
+
     def solve(self, model):
 
         self._validate_model(model)
+        if self.backend == "cuda":
+            return self._solve_cuda(model)
 
         A = model.A
         objective = model.objective

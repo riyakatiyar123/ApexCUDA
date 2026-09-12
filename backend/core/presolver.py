@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import numpy as np
 
-from backend.optimization_model import OptimizationModel
+from backend.core.optimization_model import OptimizationModel
 
 
 @dataclass

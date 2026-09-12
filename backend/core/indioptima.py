@@ -1,31 +1,33 @@
-from backend.presolver import GenericPresolver
-from backend.solver import ADMMSolver
-from backend.milp_solver import MILPSolver
+from backend.core.presolver import GenericPresolver
+from backend.core.solver import ADMMSolver
+from backend.core.milp_solver import MILPSolver
+from backend.backends.backend_selector import BackendSelector
 
-
-def solve(model, backend="cpu", rho=1.0, max_iterations=100):
-    if backend != "cpu":
-        raise NotImplementedError(
-            f"Backend '{backend}' is not currently supported."
-        )
+def solve(model, backend="auto", rho=1.0, max_iterations=100):
+    
 
     presolver = GenericPresolver()
     presolve_result = presolver.presolve(model)
 
     model = presolve_result.model
+    if backend == "auto":
+        selector = BackendSelector()
+        backend = selector.select(model)
 
     if model.problem_type == "LP":
 
         solver = ADMMSolver(
             rho=rho,
-            max_iterations=max_iterations
+            max_iterations=max_iterations,
+            backend=backend
         )
 
     elif model.problem_type == "MILP":
 
         solver = MILPSolver(
             rho=rho,
-            max_lp_iterations=max_iterations
+            max_lp_iterations=max_iterations,
+            backend=backend
         )
 
     else:
@@ -40,7 +42,7 @@ def solve(model, backend="cpu", rho=1.0, max_iterations=100):
 
 def main():
     import argparse
-    from backend.mps_parser import MPSParser
+    from backend.formats.mps_parser import MPSParser
 
     parser = argparse.ArgumentParser(
         description="IndiOptima Optimization Solver"
@@ -53,8 +55,8 @@ def main():
 
     parser.add_argument(
         "--backend",
-        default="cpu",
-        choices=["cpu"],
+        default="auto",
+        choices=["auto", "cpu", "cuda"],
         help="Numerical backend"
     )
 

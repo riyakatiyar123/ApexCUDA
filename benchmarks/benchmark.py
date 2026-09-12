@@ -1,7 +1,7 @@
 import time
 
-from backend.mps_parser import MPSParser
-from backend.indioptima import solve
+from backend.formats.mps_parser import MPSParser
+from backend.core.indioptima import solve
 
 
 def run_benchmark(

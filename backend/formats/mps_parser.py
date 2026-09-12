@@ -1,8 +1,7 @@
 import numpy as np
 from scipy.sparse import coo_matrix
 
-from backend.optimization_model import OptimizationModel
-
+from backend.core.optimization_model import OptimizationModel
 
 class MPSParser:
     """

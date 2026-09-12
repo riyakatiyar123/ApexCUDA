@@ -23,3 +23,6 @@ dist/
 # IDE
 .vscode/
 .idea/
+# Generated / intermediate project artifacts
+*.pkl
+project_tree.txt
